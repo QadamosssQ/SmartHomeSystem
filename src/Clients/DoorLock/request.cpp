@@ -2,6 +2,9 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 
+const char* ssid = "AdamossWIFI";
+const char* password = "00951221202611";
+
 String make_request(String url){
 
   WiFiClient wifi;
