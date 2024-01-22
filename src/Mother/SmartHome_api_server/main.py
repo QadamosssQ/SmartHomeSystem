@@ -29,16 +29,16 @@ def close_connection(exception):
         db.close()
 
 
-@app.route('/api/GetLightController', methods=['GET'])
+@app.route('/api/GetLightControllerState', methods=['GET'])
 def get_light_controller():
     fetch_data = request.get_json()
     if 'device_secret' in fetch_data and 'user_secret' in fetch_data:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT id FROM users WHERE user_secret = ?', (fetch_data['user_secret'],))
-        user_id_tuple = cursor.fetchone()
-        if user_id_tuple is not None:
-            user_id = user_id_tuple[0]
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
             cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
                            (fetch_data['device_secret'], user_id))
             device = cursor.fetchone()
@@ -63,29 +63,64 @@ def set_light_controller():
 
     fetch_data = request.get_json()
 
-    if 'device_secret' in fetch_data:
-        if check_secret_device(fetch_data['device_secret']):
-            if 'state' in fetch_data:
-                if fetch_data['state'] in ['on', 'off', 'auto']:
-                    light_state = fetch_data
-                    return 'OK', 200
-                return jsonify({'error': 'Invalid light value'}), 400
+    if 'device_secret' in fetch_data and 'user_secret' in fetch_data:
+        db = get_db()
+        cursor = db.cursor()
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
+
+            if check_secret_device(fetch_data['device_secret']):
+                if 'state' in fetch_data:
+                    if fetch_data['state'] in ['on', 'off', 'auto']:
+                        light_state = fetch_data
+
+                        cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?', (fetch_data['device_secret'], user_id))
+                        device = cursor.fetchone()
+                        if device is not None:
+                            cursor.execute('UPDATE LightControllerState SET state = ? WHERE device_id = ?', (fetch_data['state'], device[0]))
+                            db.commit()
+                            return jsonify({'message': 'Light controller state changed'}), 200
+                        else:
+                            return jsonify({'error': 'Invalid device secret'}), 400
+
+                    return jsonify({'error': 'Invalid light value'}), 400
+            else:
+                return jsonify({'error': 'Invalid secret key'}), 400
         else:
-            return jsonify({'error': 'Invalid secret key'}), 400
+            return jsonify({'error': 'Invalid user secret'}), 400
     else:
         return jsonify({'error': 'No secret key'}), 400
 
 
-@app.route('/api/GetRGBController', methods=['GET'])
+@app.route('/api/GetRGBControllerState', methods=['GET'])
 def get_rgb_controller():
     fetch_data = request.get_json()
-    if 'device_secret' in fetch_data:
-        if check_secret_device(fetch_data['device_secret']):
-            return jsonify(rgb_state)
+    if 'device_secret' in fetch_data and 'user_secret' in fetch_data:
+        db = get_db()
+        cursor = db.cursor()
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
+            cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
+                           (fetch_data['device_secret'], user_id))
+            device = cursor.fetchone()
+            if device is not None:
+                cursor.execute('SELECT * FROM GetRGBControllerState WHERE device_id = ?', (device[0],))
+                light_controller_state = cursor.fetchone()
+                if light_controller_state is not None:
+                    return jsonify({'state': light_controller_state[1], 'r': light_controller_state[2],
+                                    'g': light_controller_state[3], 'b': light_controller_state[4]}), 200
+                else:
+                    return jsonify({'error': 'No light controller state'}), 400
+            else:
+                return jsonify({'error': 'Invalid device secret'}), 400
         else:
-            return jsonify({'error': 'Invalid secret key'}), 400
+            return jsonify({'error': 'Invalid user secret'}), 400
     else:
-        return jsonify({'error': 'No secret key'}), 400
+        return jsonify({'error': 'Invalid request'}), 400
 
 
 @app.route('/api/SetRGBController', methods=['POST'])
@@ -111,16 +146,32 @@ def set_rgb_controller():
         return jsonify({'error': 'No secret key'}), 400
 
 
-@app.route('/api/GetDoorLock', methods=['GET'])
+@app.route('/api/GetDoorLockState', methods=['GET'])
 def get_door_lock():
     fetch_data = request.get_json()
-    if 'device_secret' in fetch_data:
-        if check_secret_device(fetch_data['device_secret']):
-            return jsonify(door_state)
+    if 'device_secret' in fetch_data and 'user_secret' in fetch_data:
+        db = get_db()
+        cursor = db.cursor()
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
+            cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
+                           (fetch_data['device_secret'], user_id))
+            device = cursor.fetchone()
+            if device is not None:
+                cursor.execute('SELECT * FROM GetDoorLockState WHERE device_id = ?', (device[0],))
+                light_controller_state = cursor.fetchone()
+                if light_controller_state is not None:
+                    return jsonify({'state': light_controller_state[1]}), 200
+                else:
+                    return jsonify({'error': 'No light controller state'}), 400
+            else:
+                return jsonify({'error': 'Invalid device secret'}), 400
         else:
-            return jsonify({'error': 'Invalid secret key'}), 400
+            return jsonify({'error': 'Invalid user secret'}), 400
     else:
-        return jsonify({'error': 'No secret key'}), 400
+        return jsonify({'error': 'Invalid request'}), 400
 
 
 @app.route('/api/SetDoorLock', methods=['POST'])
@@ -164,10 +215,10 @@ def register_device():
     if 'user_secret' in fetch_data and 'device_name' in fetch_data and 'type' in fetch_data:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT id FROM users WHERE user_secret = ?', (fetch_data['user_secret'],))
-        user_id_tuple = cursor.fetchone()
-        if user_id_tuple is not None:
-            user_id = user_id_tuple[0]
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
             ne_device_secret = generate_secret_key()
             if fetch_data['type'] not in devices:
                 devices_str = ', '.join(devices)
@@ -213,11 +264,11 @@ def remove_device():
     if 'user_secret' in fetch_data and 'device_secret' in fetch_data:
         db = get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT id FROM users WHERE user_secret = ?',
-                       (fetch_data['user_secret'],))
-        user_id_tuple = cursor.fetchone()
-        if user_id_tuple is not None:
-            user_id = user_id_tuple[0]
+        user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
+
+        if user_id_tuple_temp is not False:
+            user_id = user_id_tuple_temp
+
             cursor.execute('SELECT id, type FROM devices WHERE device_secret = ? AND user_id = ?',
                            (fetch_data['device_secret'], user_id))
             device = cursor.fetchone()
@@ -250,7 +301,7 @@ def generate_secret_key():
 def check_secret_device(device_secret):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute('SELECT * FROM devices WHERE device_secret = ?', device_secret)
+    cursor.execute('SELECT * FROM devices WHERE device_secret = ?', (device_secret,))
     device = cursor.fetchone()
     if device is not None:
         return True
@@ -268,6 +319,18 @@ def insert_group_device(cursor, switch):
     elif switch == 'LightController':
         cursor.execute('INSERT INTO LightControllerState (state, device_id) VALUES (?, ?)',
                        ('auto', cursor.lastrowid))
+
+
+def ValidateUser(user_secret):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT id FROM users WHERE user_secret = ?', (user_secret,))
+    user = cursor.fetchone()
+    user_id = user[0]
+    if user is not None:
+        return user_id
+    else:
+        return False
 
 
 if __name__ == '__main__':
