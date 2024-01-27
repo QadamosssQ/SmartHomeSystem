@@ -1,0 +1,25 @@
+import bcrypt
+
+def hash_password(password):
+    # Generate a salt and hash the password
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password
+
+def verify_password(input_password, stored_hashed_password):
+    # Verify the input password against the stored hashed password
+    return bcrypt.checkpw(input_password.encode('utf-8'), stored_hashed_password)
+
+# Example usage:
+user_password = "secret_password"
+
+# Hash the password and store it in the database
+hashed_password = hash_password(user_password)
+print(f"Hashed Password: {hashed_password}")
+
+# Verify the entered password with the stored hashed password
+entered_password = "wrong_password"
+if verify_password(entered_password, hashed_password):
+    print("Password is correct!")
+else:
+    print("Password is incorrect!")

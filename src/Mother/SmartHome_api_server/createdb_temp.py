@@ -30,9 +30,9 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE RGBControllerState (
         id INTEGER PRIMARY KEY,
-        red INTEGER CHECK (red >= 1 AND red <= 255),
-        green INTEGER CHECK (green >= 1 AND green <= 255),
-        blue INTEGER CHECK (blue >= 1 AND blue <= 255),
+        red INTEGER CHECK (red >= 0 AND red <= 255),
+        green INTEGER CHECK (green >= 0 AND green <= 255),
+        blue INTEGER CHECK (blue >= 0 AND blue <= 255),
         state BOOLEAN,
         device_id INTEGER,
         FOREIGN KEY (device_id) REFERENCES devices (id) ON DELETE CASCADE
