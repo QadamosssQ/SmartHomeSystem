@@ -1,10 +1,8 @@
 import sqlite3
 
-# Connect to the database
 conn = sqlite3.connect('db.db')
 cursor = conn.cursor()
 
-# Create 'users' table
 cursor.execute('''
     CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,19 +12,18 @@ cursor.execute('''
     )
 ''')
 
-# Create 'devices' table
 cursor.execute('''
     CREATE TABLE devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_name TEXT,
         type TEXT,
         device_secret VARCHAR(32),
+        ip_address VARCHAR(12),
         user_id INTEGER,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
 ''')
 
-# Create 'RGBControllerState' table
 cursor.execute('''
     CREATE TABLE RGBControllerState (
         id INTEGER PRIMARY KEY,
@@ -39,7 +36,6 @@ cursor.execute('''
     )
 ''')
 
-# Create 'DoorLockState' table
 cursor.execute('''
     CREATE TABLE DoorLockState (
         id INTEGER PRIMARY KEY,
@@ -49,7 +45,6 @@ cursor.execute('''
     )
 ''')
 
-# Create 'LightControllerState' table
 cursor.execute('''
     CREATE TABLE LightControllerState (
         id INTEGER PRIMARY KEY,
@@ -59,6 +54,5 @@ cursor.execute('''
     )
 ''')
 
-# Commit changes and close connection
 conn.commit()
 conn.close()

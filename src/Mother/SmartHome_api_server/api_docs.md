@@ -1,94 +1,94 @@
-## Endpoints:
+# API Documentation
 
-### 1. Get Light Controller
-- **Endpoint:** `/api/GetLightController`
-- **Method:** GET
+## 1. Get Light Controller State
+
+- **Endpoint:** `/api/GetLightControllerState`
+- **Method:** `GET`
 - **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-- **Returns:**
-  - Returns the current state of the light controller.
+  - `device_secret` (string): Device secret key.
+  - `user_secret` (string): User secret key.
 
-### 2. Set Light Controller
+- **Response:**
+  - `200 OK`: Returns the light controller state if successful.
+    ```json
+    {"state": "on"}
+    ```
+  - `400 Bad Request`: Invalid request or device secret.
+    ```json
+    {"error": "Invalid request"}
+    ```
+  - `500 Internal Server Error`: An error occurred on the server.
+    ```json
+    {"error": "An error occurred: ..."}
+
+
+## 2. Set Light Controller State
+
 - **Endpoint:** `/api/SetLightController`
-- **Method:** POST
+- **Method:** `POST`
 - **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-  - `state` (string, required): Desired state for the light controller (`on`, `off`, `auto`).
-- **Returns:**
-  - If successful, returns 'OK'. Otherwise, returns an error message.
+  - `device_secret` (string): Device secret key.
+  - `user_secret` (string): User secret key.
+  - `state` (string): New state ("on", "off", "auto").
 
-### 3. Get RGB Controller
-- **Endpoint:** `/api/GetRGBController`
-- **Method:** GET
+- **Response:**
+  - `200 OK`: Light controller state changed successfully.
+    ```json
+    {"message": "Light controller state changed"}
+    ```
+  - `400 Bad Request`: Invalid request, device secret, or light value.
+    ```json
+    {"error": "Invalid request"}
+    ```
+  - `500 Internal Server Error`: An error occurred on the server.
+    ```json
+    {"error": "An error occurred: ..."}
+
+
+## 3. Get RGB Controller State
+
+- **Endpoint:** `/api/GetRGBControllerState`
+- **Method:** `GET`
 - **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-- **Returns:**
-  - Returns the current state of the RGB controller.
+  - `device_secret` (string): Device secret key.
+  - `user_secret` (string): User secret key.
 
-### 4. Set RGB Controller
+- **Response:**
+  - `200 OK`: Returns the RGB controller state if successful.
+    ```json
+    {"state": "on", "r": 255, "g": 0, "b": 0}
+    ```
+  - `400 Bad Request`: Invalid request or device secret.
+    ```json
+    {"error": "Invalid request"}
+    ```
+  - `500 Internal Server Error`: An error occurred on the server.
+    ```json
+    {"error": "An error occurred: ..."}
+
+
+## 4. Set RGB Controller State
+
 - **Endpoint:** `/api/SetRGBController`
-- **Method:** POST
+- **Method:** `POST`
 - **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-  - `r` (integer, required): Red component of RGB (0-255).
-  - `g` (integer, required): Green component of RGB (0-255).
-  - `b` (integer, required): Blue component of RGB (0-255).
-  - `state` (boolean, required): Desired state for the RGB controller (`True` or `False`).
-- **Returns:**
-  - If successful, returns 'OK'. Otherwise, returns an error message.
+  - `device_secret` (string): Device secret key.
+  - `user_secret` (string): User secret key.
+  - `r` (int): Red component (0-255).
+  - `g` (int): Green component (0-255).
+  - `b` (int): Blue component (0-255).
+  - `state` (string): New state ("on", "off", "auto").
 
-### 5. Get Door Lock
-- **Endpoint:** `/api/GetDoorLock`
-- **Method:** GET
-- **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-- **Returns:**
-  - Returns the current state of the door lock.
+- **Response:**
+  - `200 OK`: RGB controller state changed successfully.
+    ```json
+    {"message": "RGB controller state changed"}
+    ```
+  - `400 Bad Request`: Invalid request, device secret, or RGB value.
+    ```json
+    {"error": "Invalid request"}
+    ```
+  - `500 Internal Server Error`: An error occurred on the server.
+    ```json
+    {"error": "An error occurred: ..."}
 
-### 6. Set Door Lock
-- **Endpoint:** `/api/SetDoorLock`
-- **Method:** POST
-- **Parameters:**
-  - `secret_key` (string, required): Secret key for authentication.
-  - `state` (string, required): Desired state for the door lock (`open`, `closed`, `auto`).
-- **Returns:**
-  - If successful, returns 'OK'. Otherwise, returns an error message.
-
-### 7. Register User
-- **Endpoint:** `/api/RegisterUser`
-- **Method:** POST
-- **Parameters:**
-  - `login` (string, required): User login.
-  - `password` (string, required): User password.
-- **Returns:**
-  - If successful, returns 'OK'. Otherwise, returns an error message.
-
-### 8. Register Device
-- **Endpoint:** `/api/RegisterDevice`
-- **Method:** POST
-- **Parameters:**
-  - `login` (string, required): User login.
-  - `password` (string, required): User password.
-  - `device_name` (string, required): Name of the device.
-  - `type` (string, required): Type of the device (must be one of: RGBController, LightController, DoorLock).
-- **Returns:**
-  - If successful, returns device information (name and secret key). Otherwise, returns an error message.
-
-### 9. Show Devices Secret Keys
-- **Endpoint:** `/api/ShowDevicesSecretKeys`
-- **Method:** POST
-- **Parameters:**
-  - `login` (string, required): User login.
-  - `password` (string, required): User password.
-- **Returns:**
-  - Returns a dictionary of device names and their corresponding secret keys.
-
-### 10. Remove Device
-- **Endpoint:** `/api/RemoveDevice`
-- **Method:** POST
-- **Parameters:**
-  - `login` (string, required): User login.
-  - `password` (string, required): User password.
-  - `secret_key` (string, required): Secret key of the device to be removed.
-- **Returns:**
-  - If successful, returns a success message. Otherwise, returns an error message.

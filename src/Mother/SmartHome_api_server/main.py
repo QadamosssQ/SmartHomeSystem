@@ -1,5 +1,6 @@
 import secrets
 import sqlite3
+import socket
 
 import bcrypt
 from flask import Flask, request, jsonify, g
@@ -279,28 +280,33 @@ def register_user():
 def register_device():
     try:
         fetch_data = request.get_json()
-        if 'user_secret' in fetch_data and 'device_name' in fetch_data and 'type' in fetch_data:
+        if 'user_secret' in fetch_data and 'device_name' in fetch_data and 'type' in fetch_data and 'ip_address' in fetch_data:
             db = get_db()
             cursor = db.cursor()
             user_id_tuple_temp = ValidateUser(fetch_data['user_secret'])
 
             if user_id_tuple_temp is not False:
                 user_id = user_id_tuple_temp
-                ne_device_secret = secrets.token_urlsafe(32)
+                new_device_secret = secrets.token_urlsafe(32)
+
+                if not is_valid_ip(fetch_data['ip_address']):
+                    return jsonify({'error': 'Invalid ip address'}), 400
+
                 if fetch_data['type'] not in devices:
                     devices_str = ', '.join(devices)
                     return jsonify({'error': 'Invalid device type. Available devices: ' + devices_str}), 400
 
                 else:
                     cursor.execute(
-                        'INSERT INTO devices (user_id, device_name, type, device_secret) VALUES (?, ?, ?, ?)',
-                        (user_id, fetch_data['device_name'], fetch_data['type'], ne_device_secret))
+                        'INSERT INTO devices (user_id, device_name, type, device_secret, ip_address) VALUES (?, ?, ?, ?, ?)',
+                        (user_id, fetch_data['device_name'], fetch_data['type'], new_device_secret,
+                         fetch_data['ip_address']))
 
                     switch = fetch_data['type']
                     insert_group_device(cursor, switch)
 
                     db.commit()
-                    return jsonify({'device_name': fetch_data['device_name'], 'device_secret': ne_device_secret}), 200
+                    return jsonify({'device_name': fetch_data['device_name'], 'device_secret': new_device_secret}), 200
             return jsonify({'error': 'Invalid user or password'}), 400
         else:
             return jsonify({'error': 'Invalid device'}), 400
@@ -367,6 +373,25 @@ def remove_device():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
+@app.route('/api/GetDeviceSecret_manual', methods=['POST'])
+def get_device_secret_manual():
+    try:
+        fetch_data = request.get_json()
+        if 'ip_address' in fetch_data:
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute('SELECT device_secret FROM devices WHERE ip_address = ?', (fetch_data['ip_address'],))
+            device_secret = cursor.fetchone()
+            if device_secret is not None:
+                return jsonify({'device_secret': device_secret[0]}), 200
+            else:
+                return jsonify({'error': 'No device found'}), 400
+        else:
+            return jsonify({'error': 'Invalid request'}), 400
+    except Exception as e:
+        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
+
+
 def check_secret_device(device_secret):
     try:
         db = get_db()
@@ -421,6 +446,14 @@ def hash_password(password):
 
 def verify_password(input_password, stored_hashed_password):
     return bcrypt.checkpw(input_password.encode('utf-8'), stored_hashed_password)
+
+
+def is_valid_ip(ip_address):
+    try:
+        socket.inet_pton(socket.AF_INET, ip_address)
+        return True
+    except socket.error:
+        return False
 
 
 if __name__ == '__main__':
