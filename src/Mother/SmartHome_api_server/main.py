@@ -259,7 +259,7 @@ def register_user():
     try:
         user = request.get_json()
         if 'login' in user and 'password' in user:
-
+            user['password'] = hash_password(user['password'])
             db = get_db()
             cursor = db.cursor()
             cursor.execute('SELECT * FROM users WHERE login = ?', (user['login'],))
@@ -270,6 +270,28 @@ def register_user():
                 db.commit()
                 return jsonify({'user_secret': new_user_secret}), 200
             return jsonify({'error': 'Username already exists'}), 400
+        else:
+            return jsonify({'error': 'Invalid user'}), 400
+    except Exception as e:
+        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
+
+
+@app.route('/api/GetUserSecret', methods=['POST'])
+def get_user_secret():
+    try:
+        user = request.get_json()
+        if 'login' in user and 'password' in user:
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute('SELECT * FROM users WHERE login = ? LIMIT 1', (user['login'],))
+            user_data = cursor.fetchone()
+            if user_data is not None:
+                if verify_password(user['password'], user_data[2]):
+                    return jsonify({'user_secret': user_data[3]}), 200
+                else:
+                    return jsonify({'error': 'Invalid password'}), 400
+            else:
+                return jsonify({'error': 'Invalid login'}), 400
         else:
             return jsonify({'error': 'Invalid user'}), 400
     except Exception as e:
