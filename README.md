@@ -36,3 +36,7 @@ The Smart Home System is a home automation project designed to provide centraliz
 - Enhancements to the user interface for improved user experience.
 
 The Smart Home System is designed to provide users with a comprehensive platform for managing and controlling various smart devices within their home, promoting convenience, energy efficiency, and security. Ongoing development and troubleshooting efforts are aimed at refining and expanding the capabilities of the system.
+
+Todo:
+usuń z register rodzaj urządzenia i zmien tylko na ip 
+w get device secret wysyłasz ip z rodzajem i to tworzy wiersz w bd i zwraca klucz
