@@ -1,0 +1,171 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include "request.h"
+
+#define r_pin D1
+#define g_pin D2
+#define b_pin D4
+
+const char* apSsid = "YourESP_AP";
+const char* apPassword = "123456789";
+
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ... (unchanged) ... -->
+</head>
+<body>
+  <div class="main">
+    <h1>Available Networks</h1>
+    <form id="connectForm">
+      <input list="networks" name="ssid" id="network" placeholder="Select a Network" required>
+      <datalist id="networks"><option value="Network-1"></datalist>
+      <input type="text" name="password" id="password" placeholder="Password" required>
+      <input type="submit" value="Connect">
+    </form>
+  </div>
+  <script>
+    // ... (unchanged JavaScript) ...
+  </script>
+</body>
+</html>)rawliteral";
+
+AsyncWebServer server(80);
+
+bool apMode = true;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(r_pin, OUTPUT);
+  pinMode(g_pin, OUTPUT);
+  pinMode(b_pin, OUTPUT);
+
+  try {
+    if (apMode) {
+      setupAccessPoint();
+    } else {
+      connectToWiFi();
+    }
+
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send_P(200, "text/html", index_html);
+    });
+
+    server.on("/connect", HTTP_POST, handleConnect);
+
+    server.begin();
+  } catch (const std::exception& e) {
+    printException(e);
+  }
+}
+
+void loop() {
+ if (!apMode && WiFi.status() != WL_CONNECTED) {
+    Serial.println("Reconnecting...");
+    connectToWiFi();
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Connected to WiFi. Checking Internet connectivity...");
+
+    if (WiFiPing()) {
+      Serial.println("Internet is accessible!");
+      // Rest of the code for handling internet connectivity
+    } else {
+      Serial.println("No Internet connectivity.");
+    }
+  }
+
+  if (apMode) {
+    Serial.println("AP Mode - Looping...");
+  } else {
+    Serial.println("Client Mode - Looping...");
+  }
+
+  delay(5000);
+}
+
+void handleConnect(AsyncWebServerRequest *request) {
+ String ssid;
+  String password;
+
+  if (request->hasParam("ssid", true) && request->hasParam("password", true)) {
+    ssid = request->getParam("ssid", true)->value();
+    password = request->getParam("password", true)->value();
+
+    if (!ssid.isEmpty() && !password.isEmpty()) {
+      Serial.println("Connecting to network...");
+      Serial.print("SSID: ");
+      Serial.println(ssid);
+      Serial.print("Password: ");
+      Serial.println(password);
+      Serial.println(password);
+
+      delay(1000);
+      Serial.println(password);
+
+      // Convert password to a C-style string (char array)
+      char passCharArray[password.length() + 1];
+      password.toCharArray(passCharArray, sizeof(passCharArray));
+
+      WiFi.begin(ssid.c_str(), passCharArray);
+      apMode = false;
+
+      request->send(200, "text/plain", "Connected to the network");
+      return;
+    } else {
+      request->send(400, "text/plain", "Error: SSID and password cannot be empty");
+      return;
+    }
+  }
+  request->send(400, "text/plain", "Error: Missing ssid or password parameters");}
+
+void setupAccessPoint() {
+  WiFi.softAP(apSsid, apPassword);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+}
+
+void connectToWiFi() {
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(apSsid, apPassword);
+  int attempts = 0;
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+    attempts++;
+
+    if (attempts > 20) {
+      Serial.println("\nFailed to connect to WiFi. Check credentials.");
+      throw std::runtime_error("Failed to connect to WiFi");
+    }
+  }
+
+  Serial.println("\nConnected to WiFi!");
+  apMode = false;
+}
+
+void printException(const std::exception& ex) {
+  Serial.print("Exception: ");
+  Serial.println(ex.what());
+}
+
+bool WiFiPing() {
+  HTTPClient http;
+  WiFiClient wifiClient;
+
+  if (http.begin(wifiClient, "http://www.google.com")) {
+    int httpCode = http.GET();
+    http.end();
+    return httpCode == HTTP_CODE_OK;
+  }
+
+  return false;
+}
