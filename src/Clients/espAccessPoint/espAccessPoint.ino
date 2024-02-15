@@ -1,15 +1,12 @@
-#include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <ESP8266HTTPClient.h>
+#include <ESP8266WebServer.h>
 
 const char* ssid = "ESP8266-Access-Point";
 const char* password = "123456789";
 
-AsyncWebServer server(80);
+ESP8266WebServer server(80);
 
-bool apMode = true; 
+bool apMode = true;
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -95,13 +92,13 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body>
 </html>)rawliteral";
 
-void handleConnect(AsyncWebServerRequest *request) {
+void handleConnect() {
   String ssid;
   String password;
 
-  if (request->hasParam("ssid", true) && request->hasParam("password", true)) {
-    ssid = request->getParam("ssid", true)->value();
-    password = request->getParam("password", true)->value();
+  if (server.hasArg("ssid") && server.hasArg("password")) {
+    ssid = server.arg("ssid");
+    password = server.arg("password");
 
     Serial.println("Connecting to network...");
     Serial.print("SSID: ");
@@ -111,27 +108,24 @@ void handleConnect(AsyncWebServerRequest *request) {
     apMode = false;
 
     // Attempt to connect to WiFi
-    WiFi.begin(ssid, password);
-    request->send(200, "text/plain", "Connected to the network");
+    WiFi.begin(ssid.c_str(), password.c_str());
+
+    // Wait for WiFi connection
+    unsigned long startTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
+      delay(500);
+    }
+
+    // Check connection status
+    if (WiFi.status() == WL_CONNECTED) {
+      server.send(200, "text/plain", "Connected to the network");
+    } else {
+      server.send(400, "text/plain", "Error: Failed to connect to the network. Check SSID and password.");
+    }
     return;
-
-    // // Wait for WiFi connection
-    // unsigned long startTime = millis();
-    // while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
-    //   delay(500);
-    // }
-
-    // // Check connection status
-    // if (WiFi.status() == WL_CONNECTED) {
-    //   request->send(200, "text/plain", "Connected to the network");
-    // } else {
-    //   request->send(400, "text/plain", "Error: Failed to connect to the network. Check SSID and password.");
-    // }
-    // return;
   }
-  request->send(400, "text/plain", "Error: Missing ssid or password parameters");
+  server.send(400, "text/plain", "Error: Missing ssid or password parameters");
 }
-
 
 void setup() {
   Serial.begin(115200);
@@ -141,12 +135,8 @@ void setup() {
   Serial.println(IP);
   Serial.println(WiFi.localIP());
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    
-    Serial.print("Request URL: ");
-    Serial.println(request->url());
-
-    request->send_P(200, "text/html", index_html);
+  server.on("/", HTTP_GET, []() {
+    server.send_P(200, "text/html", index_html);
   });
 
   server.on("/connect", HTTP_POST, handleConnect);
@@ -155,6 +145,8 @@ void setup() {
 }
 
 void loop() {
+  server.handleClient();
+
   if (!apMode && WiFi.status() != WL_CONNECTED) {
     Serial.println("Reconnecting...");
     WiFi.reconnect();
@@ -163,15 +155,20 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("Connected to WiFi. Checking Internet connectivity...");
     WiFi.mode(WIFI_STA);
-    WiFi.enableAP(false);
     WiFi.softAPdisconnect();
     WiFi.softAPdisconnect(false);
 
     if (WiFiPing()) {
       Serial.println("Internet is accessible!");
+      // here code for requests:
+
+
+      
     } else {
       Serial.println("No Internet connectivity.");
     }
+  } else {
+    Serial.println("No Internet connectivity.");
   }
 
   if (apMode) {
@@ -183,18 +180,12 @@ void loop() {
   delay(5000);
 }
 
-
 bool WiFiPing() {
-  HTTPClient http;
-
-  WiFiClient wifiClient;
-
-  if (http.begin(wifiClient, "http://www.google.com")) {
-    int httpCode = http.GET();
-    http.end();
-    return httpCode == HTTP_CODE_OK;
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClient wifiClient;
+    if (wifiClient.connect("www.google.com", 80)) {
+      return true;
+    }
   }
-
   return false;
 }
-
