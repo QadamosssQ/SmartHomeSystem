@@ -5,6 +5,7 @@ const char* ssid = "ESP8266-Access-Point";
 const char* password = "123456789";
 
 ESP8266WebServer server(80);
+IPAddress apIP(192, 168, 1, 1);
 
 bool apMode = true;
 
@@ -62,13 +63,25 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     <form id="connectForm">
       <input list="networks" name="ssid" id="network" placeholder="Select a Network" required>
-      <datalist id="networks"><option value="Network-1"></datalist>
+      <datalist id="networks">
+        <!-- Wi-Fi networks will be dynamically populated here -->
+      </datalist>
       <input type="password" name="password" id="password" placeholder="Password" required>
       <input type="submit" value="Connect">
     </form>
   </div>
 
   <script>
+    function updateNetworkList(networks) {
+      var dataList = document.getElementById("networks");
+      dataList.innerHTML = "";
+      networks.forEach(function(network) {
+        var option = document.createElement("option");
+        option.value = network;
+        dataList.appendChild(option);
+      });
+    }
+
     document.getElementById("connectForm").addEventListener("submit", function (event) {
       event.preventDefault();
 
@@ -84,7 +97,7 @@ const char index_html[] PROGMEM = R"rawliteral(
           body: "ssid=" + encodeURIComponent(network) + "&password=" + encodeURIComponent(password),
         }).then(response => response.text()).then(data => {
           alert(data);
-          window.location.reload();  // Odśwież stronę po nawiązaniu połączenia
+          window.location.reload();  // Refresh the page after connecting
         });
       }
     });
@@ -107,16 +120,13 @@ void handleConnect() {
     Serial.println(password);
     apMode = false;
 
-    // Attempt to connect to WiFi
     WiFi.begin(ssid.c_str(), password.c_str());
 
-    // Wait for WiFi connection
     unsigned long startTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
       delay(500);
     }
 
-    // Check connection status
     if (WiFi.status() == WL_CONNECTED) {
       server.send(200, "text/plain", "Connected to the network");
     } else {
@@ -130,13 +140,17 @@ void handleConnect() {
 void setup() {
   Serial.begin(115200);
   WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
   Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, []() {
-    server.send_P(200, "text/html", index_html);
+    String networks = getAvailableNetworks();
+    String htmlPage = String(index_html);
+    htmlPage.replace("<!-- Wi-Fi networks will be dynamically populated here -->", networks);
+    server.send(200, "text/html", htmlPage);
   });
 
   server.on("/connect", HTTP_POST, handleConnect);
@@ -160,10 +174,6 @@ void loop() {
 
     if (WiFiPing()) {
       Serial.println("Internet is accessible!");
-      // here code for requests:
-
-
-      
     } else {
       Serial.println("No Internet connectivity.");
     }
@@ -188,4 +198,13 @@ bool WiFiPing() {
     }
   }
   return false;
+}
+
+String getAvailableNetworks() {
+  String networkList = "";
+  int numNetworks = WiFi.scanNetworks();
+  for (int i = 0; i < numNetworks; ++i) {
+    networkList += "<option value=\"" + WiFi.SSID(i) + "\">";
+  }
+  return networkList;
 }
