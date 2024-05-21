@@ -18,7 +18,6 @@ cursor.execute('''
         device_name TEXT,
         type TEXT,
         device_secret VARCHAR(32),
-        ip_address VARCHAR(12),
         user_id INTEGER,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
