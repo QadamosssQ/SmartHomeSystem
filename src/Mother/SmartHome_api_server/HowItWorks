@@ -1,0 +1,7 @@
+1. On your device, log in to your account using the access point, with credentials previously
+created on the main web page hosted on the local server.
+2. The device will retrieve the user secret by accessing the "/login" endpoint.
+3. The device sends the user secret to the "/RegisterDevice" endpoint via the API, receiving
+a device secret in response, which it stores in embedded memory.
+4. On the web page, implement a refresh procedure to display the newly registered devices.
+5. You can now control your device through the web interface.

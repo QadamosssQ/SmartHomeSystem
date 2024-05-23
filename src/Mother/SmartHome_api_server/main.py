@@ -278,28 +278,6 @@ def register_user():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/GetUserSecret', methods=['POST'])
-def get_user_secret():
-    try:
-        user = request.get_json()
-        if 'login' in user and 'password' in user:
-            db = get_db()
-            cursor = db.cursor()
-            cursor.execute('SELECT * FROM users WHERE login = ? LIMIT 1', (user['login'],))
-            user_data = cursor.fetchone()
-            if user_data is not None:
-                if verify_password(user['password'], user_data[2]):
-                    return jsonify({'user_secret': user_data[3]}), 200
-                else:
-                    return jsonify({'error': 'Invalid password'}), 400
-            else:
-                return jsonify({'error': 'Invalid login'}), 400
-        else:
-            return jsonify({'error': 'Invalid user'}), 400
-    except Exception as e:
-        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
-
-
 @app.route('/api/RegisterDevice', methods=['POST'])
 def register_device():
     try:
@@ -334,7 +312,29 @@ def register_device():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/ShowDevicesSecretKeys', methods=['POST'])
+@app.route('/api/login', methods=['GET'])
+def get_user_secret():
+    try:
+        user = request.get_json()
+        if 'login' in user and 'password' in user:
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute('SELECT * FROM users WHERE login = ? LIMIT 1', (user['login'],))
+            user_data = cursor.fetchone()
+            if user_data is not None:
+                if verify_password(user['password'], user_data[2]):
+                    return jsonify({'user_secret': user_data[3]}), 200
+                else:
+                    return jsonify({'error': 'Invalid password'}), 400
+            else:
+                return jsonify({'error': 'Invalid login'}), 400
+        else:
+            return jsonify({'error': 'Invalid user'}), 400
+    except Exception as e:
+        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
+
+
+@app.route('/api/GetDevices', methods=['GET'])
 def show_device_secret():
     try:
         fetch_data = request.get_json()
@@ -358,7 +358,7 @@ def show_device_secret():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/RemoveDevice', methods=['POST'])
+@app.route('/api/RemoveDevice', methods=['DELETE'])
 def remove_device():
     try:
         fetch_data = request.get_json()

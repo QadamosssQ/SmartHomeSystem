@@ -11,7 +11,7 @@
 #include <SPI.h>
 
 #include "display_functions.h"
-#include "request.h"
+#include "request.cpp"
 
 const char* ssid = "AdamossWIFI";
 const char* password = "00951221202611";
@@ -33,8 +33,6 @@ String URL = "http://127.0.0.1:5000/api/GetDoorLock";
 
 PN532_I2C pn532_i2c(Wire);
 NfcAdapter nfc = NfcAdapter(pn532_i2c);
-
-//all allowed cards:
 
 String allowedCards[100] = {
 
