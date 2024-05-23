@@ -1,4 +1,3 @@
-//request.h
 #ifndef REQUEST_H
 #define REQUEST_H
 
@@ -8,6 +7,6 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 
-String make_request(String url);
+String make_request(String url, JsonObject& jsonPayload);
 
 #endif

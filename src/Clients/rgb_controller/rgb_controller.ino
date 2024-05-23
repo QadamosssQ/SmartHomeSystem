@@ -29,9 +29,13 @@ void setup() {
 
 
 void loop() {
-  String response = make_request(apiURL);
-
   DynamicJsonDocument jsonDoc(1024);
+  jsonDoc["user_secret"] = "sAHZZN8xXS1HMk9dSHU0NHaYJPE_oUcZrESRnH26rhg";
+  jsonDoc["device_secret"] = "Aki3hjZ3T6Vekm-Hr1zge_jYT-Tw0Zl7VsWGiFaUBMM";
+
+  JsonObject jsonPayload = jsonDoc.to<JsonObject>();
+
+  String response = make_request(apiURL, jsonPayload);
   deserializeJson(jsonDoc, response);
 
   if (jsonDoc.containsKey("r") && jsonDoc.containsKey("g") && jsonDoc.containsKey("b") && jsonDoc.containsKey("state")) {
