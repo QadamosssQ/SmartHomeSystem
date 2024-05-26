@@ -36,6 +36,7 @@ void loop() {
   JsonObject jsonPayload = jsonDoc.to<JsonObject>();
 
   String response = make_request(apiURL, jsonPayload);
+  # TODO: Send this in headers no in payloads
   deserializeJson(jsonDoc, response);
 
   if (jsonDoc.containsKey("r") && jsonDoc.containsKey("g") && jsonDoc.containsKey("b") && jsonDoc.containsKey("state")) {

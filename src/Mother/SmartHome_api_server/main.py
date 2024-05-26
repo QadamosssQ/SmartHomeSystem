@@ -1,6 +1,6 @@
 import secrets
-import sqlite3
 import socket
+import sqlite3
 
 import bcrypt
 from flask import Flask, request, jsonify, g
@@ -33,7 +33,7 @@ def not_found(error):
     return jsonify({'error': 'Not Found', 'message': 'The requested URL was not found on the server.'}), 404
 
 
-@app.route('/api/GetLightController', methods=['GET'])
+@app.route('/api/GetLightController', methods=['POST'])
 def get_light_controller():
     try:
         fetch_data = request.get_json()
@@ -77,9 +77,9 @@ def set_light_controller():
             if user_id_tuple_temp is not False:
                 user_id = user_id_tuple_temp
 
-                if check_secret_device(fetch_data['device_secret']):
+                if check_device_secret(fetch_data['device_secret']):
                     if 'state' in fetch_data:
-                        if fetch_data['state'] in ['on', 'off', 'auto']:
+                        if fetch_data['state'] == 1 or fetch_data['state'] == 0:
                             cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
                                            (fetch_data['device_secret'], user_id))
                             device = cursor.fetchone()
@@ -90,12 +90,16 @@ def set_light_controller():
                                 return jsonify({'message': 'Light controller state changed'}), 200
                             else:
                                 return jsonify({'error': 'Invalid device secret'}), 400
-
-                        return jsonify({'error': 'Invalid light value'}), 400
+                        else:
+                            return jsonify({'error': 'Invalid state value'}), 400
+                    else:
+                        return jsonify({'error': 'state value is missing'}), 400
+                else:
+                    return jsonify({'error': 'Invalid device_secret value'}), 400
             else:
                 return jsonify({'error': 'Invalid secret key'}), 400
         else:
-            return jsonify({'error': 'No secret key'}), 400
+            return jsonify({'error': 'secret_key value is missing'}), 400
     except Exception as e:
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
@@ -146,15 +150,14 @@ def set_rgb_controller():
             if user_id_tuple_temp is not False:
                 user_id = user_id_tuple_temp
 
-                if check_secret_device(fetch_data['device_secret']):
+                if check_device_secret(fetch_data['device_secret']):
                     if 'r' in fetch_data and 'g' in fetch_data and 'b' in fetch_data and 'state' in fetch_data:
                         if (
-                            (0 > fetch_data['r'] or fetch_data['r'] > 255) or
-                            (0 > fetch_data['g'] or fetch_data['g'] > 255) or
-                            (0 > fetch_data['b'] or fetch_data['b'] > 255) or
-                            fetch_data['state'] != 0) and \
-                                fetch_data['state'] != 1:
-                            pass
+                                (0 > fetch_data['r'] or fetch_data['r'] > 255) or
+                                (0 > fetch_data['g'] or fetch_data['g'] > 255) or
+                                (0 > fetch_data['b'] or fetch_data['b'] > 255) or
+                                fetch_data['state'] != 0) or fetch_data['state'] != 1:
+                            return jsonify({'error': 'Invalid RGB or state value'}), 400
                         else:
                             try:
                                 cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
@@ -229,7 +232,7 @@ def set_door_lock():
             if user_id_tuple_temp is not False:
                 user_id = user_id_tuple_temp
 
-                if check_secret_device(fetch_data['device_secret']):
+                if check_device_secret(fetch_data['device_secret']):
                     if 'state' in fetch_data:
                         if fetch_data['state'] in ['on', 'off', 'auto']:
 
@@ -393,7 +396,7 @@ def remove_device():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-def check_secret_device(device_secret):
+def check_device_secret(device_secret):
     try:
         db = get_db()
         cursor = db.cursor()

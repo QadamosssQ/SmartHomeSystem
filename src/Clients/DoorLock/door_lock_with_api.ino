@@ -1,4 +1,5 @@
 //door_lock_with_api.ino
+# TODO: Change structure to new type
 #include <Wire.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
