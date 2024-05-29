@@ -79,7 +79,7 @@ def set_light_controller():
 
                 if check_device_secret(fetch_data['device_secret']):
                     if 'state' in fetch_data:
-                        if fetch_data['state'] == 1 or fetch_data['state'] == 0:
+                        if fetch_data['state'] == "on" or fetch_data['state'] == "off":
                             cursor.execute('SELECT * FROM devices WHERE device_secret = ? AND user_id = ?',
                                            (fetch_data['device_secret'], user_id))
                             device = cursor.fetchone()
@@ -104,7 +104,7 @@ def set_light_controller():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/GetRGBController', methods=['GET'])
+@app.route('/api/GetRGBController', methods=['POST'])
 def get_rgb_controller():
     try:
         fetch_data = request.get_json()
@@ -187,7 +187,7 @@ def set_rgb_controller():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/GetDoorLock', methods=['GET'])
+@app.route('/api/GetDoorLock', methods=['POST'])
 def get_door_lock():
     try:
         fetch_data = request.get_json()
@@ -315,7 +315,7 @@ def register_device():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/login', methods=['GET'])
+@app.route('/api/login', methods=['POST'])
 def get_user_secret():
     try:
         user = request.get_json()
@@ -337,7 +337,7 @@ def get_user_secret():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/GetDevices', methods=['GET'])
+@app.route('/api/GetDevices', methods=['POST'])
 def show_device_secret():
     try:
         fetch_data = request.get_json()
@@ -361,7 +361,7 @@ def show_device_secret():
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 
-@app.route('/api/RemoveDevice', methods=['DELETE'])
+@app.route('/api/RemoveDevice', methods=['POST'])
 def remove_device():
     try:
         fetch_data = request.get_json()
@@ -462,3 +462,15 @@ def is_valid_ip(ip_address):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+
+
+# Example of how to use headers in api !!!! NEVER PUT "_" as a header name
+# @app.route('/api/GetLightController', methods=['GET'])
+# def get_light_controller():
+#     try:
+#
+#         if 'device-secret' in request.headers and 'user-secret' in request.headers:
+#             db = get_db()
+#             cursor = db.cursor()
+#             user_id_tuple_temp = valid
