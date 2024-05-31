@@ -4,11 +4,10 @@
 #include <ESP8266WebServer.h>
 #include "request.h"
 #include <ArduinoJson.h>
-#include <EEPROM.h>
 
-int addr = 0;
-
-#define light D4
+#define r_pin D1
+#define g_pin D2
+#define b_pin D4
 
 const char* APssid = "Smarthome-Setup";
 const char* APpassword = "123456789";
@@ -16,7 +15,7 @@ const char* APpassword = "123456789";
 String user_secret;
 String device_secret;
 
-const char* apiURL = "http://192.168.0.244:5000/api/GetLightController";
+const char* apiURL = "http://192.168.0.244:5000/api/GetRGBController";
 
 ESP8266WebServer server(80);
 IPAddress apIP(192, 168, 1, 1);
@@ -137,40 +136,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 String getAvailableNetworks();
 bool WiFiPing();
 
-struct Secrets {
-  char user_secret[44];
-  char device_secret[45];
-  char ssid[32];
-  char password[32];
-};
-
-Secrets secrets;
-
-void readSecretsFromEEPROM() {
-  EEPROM.get(0, secrets);
-}
-
-void clearEEPROM() {
-  for (int i = 0; i < sizeof(Secrets); ++i) {
-    EEPROM.write(i, 0);
-  }
-  EEPROM.commit();
-}
-
-void saveSecretsToEEPROM() {
-  EEPROM.put(0, secrets);
-  EEPROM.commit();
-}
-
-bool areSecretsValid() {
-  if (strlen(secrets.user_secret) > 0 &&
-      strlen(secrets.device_secret) > 0 &&
-      strlen(secrets.ssid) > 0 &&
-      strlen(secrets.password) > 0) {
-    return true;
-  }
-  return false;
-}
 
 void handleConnect() {
   String ssid;
@@ -210,13 +175,6 @@ void handleConnect() {
       device_secret = GetDeviceSecret(user_secret);
       Serial.println("Device secret: " + device_secret);
 
-      user_secret.toCharArray(secrets.user_secret, sizeof(secrets.user_secret));
-      device_secret.toCharArray(secrets.device_secret, sizeof(secrets.device_secret));
-      ssid.toCharArray(secrets.ssid, sizeof(secrets.ssid));
-      password.toCharArray(secrets.password, sizeof(secrets.password));
-
-      clearEEPROM();
-      saveSecretsToEEPROM();
 
       server.send(200, "text/plain", "Connected to the network");
     } else {
@@ -231,28 +189,27 @@ void handleConnect() {
 void setup() {
   Serial.begin(115200);
 
-  pinMode(light, OUTPUT);
+  pinMode(r_pin, OUTPUT);
+  pinMode(g_pin, OUTPUT);
+  pinMode(b_pin, OUTPUT);
 
-  EEPROM.begin(512);
+  WiFi.softAP(APssid, APpassword);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  Serial.println(WiFi.localIP());
 
-  if(areSecretsValid() == false){
-    WiFi.softAP(APssid, APpassword);
-    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-    IPAddress IP = WiFi.softAPIP();
-    Serial.print("AP IP address: ");
-    Serial.println(IP);
-    Serial.println(WiFi.localIP());
-
-    server.on("/", HTTP_GET, []() {
+  server.on("/", HTTP_GET, []() {
       String networks = getAvailableNetworks();
       String htmlPage = String(index_html);
       htmlPage.replace("<!-- Wi-Fi networks will be dynamically populated here -->", networks);
       server.send(200, "text/html", htmlPage);
-    });
+  });
 
-    server.on("/connect", HTTP_POST, handleConnect);
-    server.begin();
-  }
+  server.on("/connect", HTTP_POST, handleConnect);
+  server.begin();
+
 }
 
 void loop() {
@@ -289,19 +246,23 @@ void loop() {
       return;
     }
 
-    if (jsonDoc2.containsKey("state")) {
-      String stateValue = jsonDoc2["state"];
+    if (jsonDoc2.containsKey("r") && jsonDoc2.containsKey("g") && jsonDoc2.containsKey("b") && jsonDoc2.containsKey("state")) {
+        int r = jsonDoc2["r"];
+        int g = jsonDoc2["g"];
+        int b = jsonDoc2["b"];
+        String state = jsonDoc2["state"];
 
-      if (stateValue == "on") {
-        digitalWrite(light, HIGH);
-      } else if (stateValue == "off") {
-        digitalWrite(light, LOW);
-      } else {
-        Serial.println("Unexpected state value");
-      }
-
+        if (state == "on") {
+            analogWrite(r_pin, r);
+            analogWrite(g_pin, g);
+            analogWrite(b_pin, b);
+        } else {
+            analogWrite(r_pin, 0);
+            analogWrite(g_pin, 0);
+            analogWrite(b_pin, 0);
+        }
     } else {
-      Serial.println("Error in state: " + response);
+        Serial.println("Error: JSON response does not contain all keys");
     }
 
     delay(500);
@@ -358,8 +319,8 @@ String GetUserSecret(String login, String password){
 String GetDeviceSecret(String userSecret){
   DynamicJsonDocument jsonDoc(1024);
   jsonDoc["user_secret"] = userSecret;
-  jsonDoc["device_name"] = "LightController";
-  jsonDoc["type"] = "LightController";
+  jsonDoc["device_name"] = "RGBController";
+  jsonDoc["type"] = "RGBController";
 
   JsonObject jsonObject = jsonDoc.as<JsonObject>();
 
@@ -378,7 +339,6 @@ String GetDeviceSecret(String userSecret){
   } else {
     return "GetDeviceSecret error: " + jsonDoc2["error"].as<String>();
   }
-
 }
 
 
