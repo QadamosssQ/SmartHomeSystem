@@ -350,7 +350,7 @@ def show_device_secret():
             secret_data = cursor.fetchall()
 
             if secret_data:
-                device_secrets = [{'name': device[1], 'secret_key': device[0], 'type': device[2]} for device in
+                device_secrets = [{'name': device[1], 'device_secret': device[0], 'type': device[2]} for device in
                                   secret_data]
                 return jsonify(device_secrets), 200
             else:

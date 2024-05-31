@@ -3,30 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Document</title>
+    <title>Login and Register Page</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-<div class="root">
-    <div class="main">
-        <h1>LED controller</h1>
-        <div class="controls">
-            <br>
-            <label class="form">
-                <button id="toggle"></button>
-                <input class="color" type="color" name="color" id="color">
-                <input type="submit" value="Change" id="set_color">
-                <span class="info">*to turn off: choose black (#000000)</span>
-            </label>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+<div id="authContainer" class="w-full max-w-sm p-8 bg-white rounded-lg shadow-md">
+    <h1 class="mb-6 text-2xl font-semibold text-center">Login</h1>
+    <form id="loginForm" class="space-y-4">
+        <div>
+            <label for="login" class="block text-sm font-medium text-gray-700">Login</label>
+            <input type="text" id="login" name="login" required class="w-full p-2 mt-1 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
         </div>
+        <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" id="password" name="password" required class="w-full p-2 mt-1 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <button type="submit" class="w-full py-2 mt-4 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">Login</button>
+    </form>
+
+    <h1 class="mt-8 mb-6 text-2xl font-semibold text-center">Register</h1>
+    <form id="registerForm" class="space-y-4">
+        <div>
+            <label for="registerLogin" class="block text-sm font-medium text-gray-700">Login</label>
+            <input type="text" id="registerLogin" name="registerLogin" required class="w-full p-2 mt-1 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div>
+            <label for="registerPassword" class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" id="registerPassword" name="registerPassword" required class="w-full p-2 mt-1 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <button type="submit" class="w-full py-2 mt-4 font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Register</button>
+    </form>
+</div>
+
+<div id="dashboardContainer" class="hidden w-full max-w-4xl p-8 bg-white rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold text-center">Dashboard</h1>
+        <button id="logOffButton" class="px-4 py-2 font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Log Off</button>
+    </div>
+    <div id="device-list">
+        <h2 class="text-xl font-semibold mb-4">Registered Devices</h2>
     </div>
 </div>
-<div class="for_h3">
-    <h3 class="response" id="response"></h3>
-</div>
-<script src="main.js"></script>
-<footer>
-    <p class="sign">Created by Adamoss</p>
-</footer>
+
+<script>
+    const apiUrl = 'http://localhost:5000/api';
+    const authContainer = document.getElementById('authContainer');
+    const dashboardContainer = document.getElementById('dashboardContainer');
+    const deviceList = document.getElementById('device-list');
+
+    document.getElementById('loginForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        loginUser();
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        registerUser();
+    });
+
+    document.getElementById('logOffButton').addEventListener('click', logOff);
+
+    function registerUser() {
+        const login = document.getElementById('registerLogin').value;
+        const password = document.getElementById('registerPassword').value;
+        fetch(`${apiUrl}/RegisterUser`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ login, password })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.user_secret) {
+                    localStorage.setItem('user_secret', data.user_secret);
+                    authContainer.classList.add('hidden');
+                    dashboardContainer.classList.remove('hidden');
+                    fetchDevices();
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    function loginUser() {
+        const login = document.getElementById('login').value;
+        const password = document.getElementById('password').value;
+        fetch(`${apiUrl}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ login, password })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.user_secret) {
+                    localStorage.setItem('user_secret', data.user_secret);
+                    authContainer.classList.add('hidden');
+                    dashboardContainer.classList.remove('hidden');
+                    fetchDevices();
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    function fetchDevices() {
+        const user_secret = localStorage.getItem('user_secret');
+        fetch(`${apiUrl}/GetDevices`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user_secret })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.error) {
+                    deviceList.innerHTML = '';
+                    data.forEach(device => {
+                        const deviceDiv = document.createElement('div');
+                        deviceDiv.classList.add('device', 'p-4', 'border', 'mb-4', 'bg-white');
+                        deviceDiv.innerHTML = `
+                        <p><strong>Name:</strong> ${device.name}</p>
+                        <p><strong>Type:</strong> ${device.type}</p>
+                        <button onclick="redirectToAdminPanel('${device.secret_key}', '${device.type}')" class="bg-blue-500 text-white p-2 mt-2">Manage Device</button>
+                    `;
+                        deviceList.appendChild(deviceDiv);
+                    });
+                } else {
+                    deviceList.innerHTML = `<p class="text-red-500">${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    function redirectToAdminPanel(device_secret, device_type) {
+        switch (device_type) {
+            case 'RGBController':
+                window.location.href = `rgb_admin.html?device_secret=${device_secret}`;
+                break;
+            case 'LightController':
+                window.location.href = `light_admin.html?device_secret=${device_secret}`;
+                break;
+            case 'DoorLock':
+                window.location.href = `doorlock_admin.html?device_secret=${device_secret}`;
+                break;
+            default:
+                console.error('Unknown device type');
+        }
+    }
+
+    function logOff() {
+        localStorage.removeItem('user_secret');
+        dashboardContainer.classList.add('hidden');
+        authContainer.classList.remove('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('user_secret')) {
+            authContainer.classList.add('hidden');
+            dashboardContainer.classList.remove('hidden');
+            fetchDevices();
+        }
+    });
+</script>
 </body>
 </html>
