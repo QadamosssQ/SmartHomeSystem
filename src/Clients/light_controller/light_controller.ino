@@ -1,9 +1,12 @@
-// TODO: zrób tak by nie rejestrowało nowego urządzenia przy każdym restarcie plus zrób coś z stanem 'auto'
+// TODO: zrób tak by nie rejestrowało nowego urządzenia przy każdym restarcie
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include "request.h"
 #include <ArduinoJson.h>
+#include <EEPROM.h>
+
+int addr = 0;
 
 #define light D4
 
@@ -134,6 +137,41 @@ const char index_html[] PROGMEM = R"rawliteral(
 String getAvailableNetworks();
 bool WiFiPing();
 
+struct Secrets {
+  char user_secret[44];
+  char device_secret[45];
+  char ssid[32];
+  char password[32];
+};
+
+Secrets secrets;
+
+void readSecretsFromEEPROM() {
+  EEPROM.get(0, secrets);
+}
+
+void clearEEPROM() {
+  for (int i = 0; i < sizeof(Secrets); ++i) {
+    EEPROM.write(i, 0);
+  }
+  EEPROM.commit();
+}
+
+void saveSecretsToEEPROM() {
+  EEPROM.put(0, secrets);
+  EEPROM.commit();
+}
+
+bool areSecretsValid() {
+  if (strlen(secrets.user_secret) > 0 &&
+      strlen(secrets.device_secret) > 0 &&
+      strlen(secrets.ssid) > 0 &&
+      strlen(secrets.password) > 0) {
+    return true;
+  }
+  return false;
+}
+
 void handleConnect() {
   String ssid;
   String password;
@@ -172,6 +210,14 @@ void handleConnect() {
       device_secret = GetDeviceSecret(user_secret);
       Serial.println("Device secret: " + device_secret);
 
+      user_secret.toCharArray(secrets.user_secret, sizeof(secrets.user_secret));
+      device_secret.toCharArray(secrets.device_secret, sizeof(secrets.device_secret));
+      ssid.toCharArray(secrets.ssid, sizeof(secrets.ssid));
+      password.toCharArray(secrets.password, sizeof(secrets.password));
+
+      clearEEPROM();
+      saveSecretsToEEPROM();
+
       server.send(200, "text/plain", "Connected to the network");
     } else {
       server.send(400, "text/plain", "Error: Failed to connect to the network. Check SSID and password.");
@@ -181,27 +227,32 @@ void handleConnect() {
   server.send(400, "text/plain", "Error: Missing ssid or password parameters");
 }
 
+
 void setup() {
   Serial.begin(115200);
 
   pinMode(light, OUTPUT);
 
-  WiFi.softAP(APssid, APpassword);
-  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(IP);
-  Serial.println(WiFi.localIP());
+  EEPROM.begin(512);
 
-  server.on("/", HTTP_GET, []() {
-    String networks = getAvailableNetworks();
-    String htmlPage = String(index_html);
-    htmlPage.replace("<!-- Wi-Fi networks will be dynamically populated here -->", networks);
-    server.send(200, "text/html", htmlPage);
-  });
+  if(areSecretsValid() == false){
+    WiFi.softAP(APssid, APpassword);
+    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+    IPAddress IP = WiFi.softAPIP();
+    Serial.print("AP IP address: ");
+    Serial.println(IP);
+    Serial.println(WiFi.localIP());
 
-  server.on("/connect", HTTP_POST, handleConnect);
-  server.begin();
+    server.on("/", HTTP_GET, []() {
+      String networks = getAvailableNetworks();
+      String htmlPage = String(index_html);
+      htmlPage.replace("<!-- Wi-Fi networks will be dynamically populated here -->", networks);
+      server.send(200, "text/html", htmlPage);
+    });
+
+    server.on("/connect", HTTP_POST, handleConnect);
+    server.begin();
+  }
 }
 
 void loop() {
