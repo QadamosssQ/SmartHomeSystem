@@ -1,4 +1,4 @@
-// Error: Nulls
+// Error: Nulls maybe because I am curently working on esp8266 which dont work with SPI at all
 
 #include <ESP8266WebServer.h>
 #include "request.h"
