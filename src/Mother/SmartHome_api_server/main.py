@@ -91,7 +91,7 @@ def set_light_controller():
                             else:
                                 return jsonify({'error': 'Invalid device secret'}), 400
                         else:
-                            return jsonify({'error': 'Invalid state value'}), 400
+                            return jsonify({'error': 'Invalid state value only [on, off]'}), 400
                     else:
                         return jsonify({'error': 'state value is missing'}), 400
                 else:
@@ -310,7 +310,7 @@ def register_device():
                     return jsonify({'device_name': fetch_data['device_name'], 'device_secret': new_device_secret}), 200
             return jsonify({'error': 'Invalid user_secret'}), 400
         else:
-            return jsonify({'error': 'Invalid device'}), 400
+            return jsonify({'error': 'Invalid data'}), 400
     except Exception as e:
         return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
@@ -415,13 +415,13 @@ def insert_group_device(cursor, switch):
     try:
         if switch == 'RGBController':
             cursor.execute('INSERT INTO RGBControllerState (red, green, blue, state, device_id) VALUES (?, ?, ?, ?, ?)',
-                           (1, 1, 1, False, cursor.lastrowid))
+                           (0, 0, 0, 'off', cursor.lastrowid))
         elif switch == 'DoorLock':
             cursor.execute('INSERT INTO DoorLockState (state, device_id) VALUES (?, ?)',
                            ('auto', cursor.lastrowid))
         elif switch == 'LightController':
             cursor.execute('INSERT INTO LightControllerState (state, device_id) VALUES (?, ?)',
-                           ('auto', cursor.lastrowid))
+                           ('off', cursor.lastrowid))
     except Exception as e:
         print(f"Error in insert_group_device: {e}")
         return False

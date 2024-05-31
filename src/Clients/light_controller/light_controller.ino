@@ -1,5 +1,4 @@
-# TODO: Wykminić jak zrobić by host wiedział do jakiego urządzenia się odnosi (muszę jakoś przekazać "device_secret" do hosta)
-
+// TODO: zrób tak by nie rejestrowało nowego urządzenia przy każdym restarcie plus zrób coś z stanem 'auto'
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -12,6 +11,7 @@ const char* APssid = "Smarthome-Setup";
 const char* APpassword = "123456789";
 
 String user_secret;
+String device_secret;
 
 const char* apiURL = "http://192.168.0.244:5000/api/GetLightController";
 
@@ -146,7 +146,6 @@ void handleConnect() {
     login_api = server.arg("login_api");
     password_api = server.arg("password_api");
 
-
     Serial.println("Connecting to network...");
     Serial.print("SSID: ");
     Serial.println(ssid);
@@ -167,30 +166,11 @@ void handleConnect() {
 
     if (WiFi.status() == WL_CONNECTED) {
 
-      DynamicJsonDocument jsonDoc(1024);
-      jsonDoc["login"] = login_api;
-      jsonDoc["password"] = password_api;
+      user_secret = GetUserSecret(login_api, password_api);
+      Serial.println("User secret: " + user_secret);
 
-      JsonObject jsonObject = jsonDoc.as<JsonObject>();
-
-      String response = make_request("http://192.168.0.244:5000/api/login", jsonObject);
-
-      DynamicJsonDocument jsonDoc2(1024);
-      DeserializationError error = deserializeJson(jsonDoc2, response);
-
-      if (error) {
-        Serial.print("Deserialization failed in login: ");
-        Serial.println(error.c_str());
-        Serial.println("Response JSON:");
-        Serial.println(response);
-        return;
-      }
-
-      if (jsonDoc2.containsKey("user_secret")) {
-        user_secret = jsonDoc2["user_secret"].as<const char*>();
-      } else {
-        Serial.println("error");
-      }
+      device_secret = GetDeviceSecret(user_secret);
+      Serial.println("Device secret: " + device_secret);
 
       server.send(200, "text/plain", "Connected to the network");
     } else {
@@ -225,6 +205,8 @@ void setup() {
 }
 
 void loop() {
+  Serial.println("-----");
+
   server.handleClient();
 
   if (!apMode && WiFi.status() != WL_CONNECTED) {
@@ -237,7 +219,10 @@ void loop() {
 
     DynamicJsonDocument jsonDoc(1024);
     jsonDoc["user_secret"] = user_secret;
-    jsonDoc["device_secret"] = "i0uDTS0vJV6x8t11Jyf565WSJruhJn6MtR8ZwUMh5eI";
+    jsonDoc["device_secret"] = device_secret;
+
+    Serial.println("user_secret: " + user_secret);
+    Serial.println("device_secret: " + device_secret);
 
     JsonObject jsonObject = jsonDoc.as<JsonObject>();
 
@@ -247,10 +232,9 @@ void loop() {
     DeserializationError error = deserializeJson(jsonDoc2, response);
 
     if (error) {
-      Serial.print("Deserialization failed: ");
-      Serial.println(error.c_str());
-      Serial.println("Response JSON:");
+      Serial.println("Failed to parse state response");
       Serial.println(response);
+      delay(1000);
       return;
     }
 
@@ -262,20 +246,19 @@ void loop() {
       } else if (stateValue == "off") {
         digitalWrite(light, LOW);
       } else {
-        Serial.println("JSON structure is not as expected.");
+        Serial.println("Unexpected state value");
       }
 
     } else {
-      Serial.println("error");
+      Serial.println("Error in state: " + response);
     }
 
     delay(500);
 
   } else {
-    Serial.println("No Internet connectivity.");
+    Serial.println(".");
+    delay(1000);
   }
-
-  delay(1000);
 }
 
 bool WiFiPing() {
@@ -296,3 +279,55 @@ String getAvailableNetworks() {
   }
   return networkList;
 }
+
+String GetUserSecret(String login, String password){
+
+  DynamicJsonDocument jsonDoc(1024);
+  jsonDoc["login"] = login;
+  jsonDoc["password"] = password;
+
+  JsonObject jsonObject = jsonDoc.as<JsonObject>();
+
+  String response = make_request("http://192.168.0.244:5000/api/login", jsonObject);
+
+  DynamicJsonDocument jsonDoc2(1024);
+  DeserializationError error = deserializeJson(jsonDoc2, response);
+
+  if (error) {
+    return "GetUserSecret error: " + jsonDoc2["error"].as<String>();
+  }
+
+  if (jsonDoc2.containsKey("user_secret")) {
+    return jsonDoc2["user_secret"].as<String>();
+  } else {
+    return "GetUserSecret error: " + jsonDoc2["error"].as<String>();
+  }
+}
+
+String GetDeviceSecret(String userSecret){
+  DynamicJsonDocument jsonDoc(1024);
+  jsonDoc["user_secret"] = userSecret;
+  jsonDoc["device_name"] = "LightController";
+  jsonDoc["type"] = "LightController";
+
+  JsonObject jsonObject = jsonDoc.as<JsonObject>();
+
+  String response = make_request("http://192.168.0.244:5000/api/RegisterDevice", jsonObject);
+
+
+  DynamicJsonDocument jsonDoc2(1024);
+  DeserializationError error = deserializeJson(jsonDoc2, response);
+
+  if (error) {
+    return "GetDeviceSecret error: " + jsonDoc2["error"].as<String>();
+  }
+
+  if (jsonDoc2.containsKey("device_secret")) {
+    return jsonDoc2["device_secret"].as<String>();
+  } else {
+    return "GetDeviceSecret error: " + jsonDoc2["error"].as<String>();
+  }
+
+}
+
+

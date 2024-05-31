@@ -47,7 +47,7 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE LightControllerState (
         id INTEGER PRIMARY KEY,
-        state VARCHAR(255),
+        state BOOLEAN,
         device_id INTEGER,
         FOREIGN KEY (device_id) REFERENCES devices (id) ON DELETE CASCADE
     )
