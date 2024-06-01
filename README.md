@@ -2,6 +2,16 @@
 
 The Smart Home System is a home automation project designed to provide centralized control over various smart devices within a household. The project includes a central server hosted on a mother device, which serves a website to enable user interaction and control over connected smart devices.
 
+## How to setup:
+1. Host website index.html from api_controll
+2. Run crate_database.py 
+3. Run main.py from api
+4. Upload chosed code to esp8266 (previously conected according to scheme)
+5. Connesct to SmartHome-Setup wifi
+6. Go to 191.168.1.1
+7. Choose your normal wifi with password and login to account previously created in api controll page
+8. Finish. Now you can use your devices
+
 ## Features:
 
 1. **RGB Controller:**
