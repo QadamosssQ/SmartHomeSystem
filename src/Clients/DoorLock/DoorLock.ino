@@ -199,6 +199,7 @@ void handleConnect() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
+      WiFi.mode(WIFI_STA);
 
       user_secret = GetUserSecret(login_api, password_api);
       Serial.println("User secret: " + user_secret);

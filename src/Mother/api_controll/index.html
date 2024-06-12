@@ -134,7 +134,7 @@
                         deviceDiv.innerHTML = `
                         <p><strong>Name:</strong> ${device.name}</p>
                         <p><strong>Type:</strong> ${device.type}</p>
-                        <button onclick="redirectToAdminPanel('${device.secret_key}', '${device.type}')" class="bg-blue-500 text-white p-2 mt-2">Manage Device</button>
+                        <button onclick="redirectToAdminPanel('${device.device_secret}', '${device.type}')" class="bg-blue-500 text-white p-2 mt-2">Manage Device</button>
                     `;
                         deviceList.appendChild(deviceDiv);
                     });
