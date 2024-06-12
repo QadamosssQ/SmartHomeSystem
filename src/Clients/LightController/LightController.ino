@@ -1,29 +1,9 @@
-// TODO: zrób tak by nie rejestrowało nowego urządzenia przy każdym restarcie
-
+#include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include "request.h"
 #include <ArduinoJson.h>
-#include <Wire.h>
-#include <ESP8266WiFi.h>
-#include <PN532_I2C.h>
-#include <PN532.h>
-#include <NfcAdapter.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ST7789.h>
-#include <SPI.h>
 
-#include "display_functions.h"
-#include "request.h"
-
-
-#define TFT_CS 6
-#define TFT_DC 5
-#define TFT_RST 7
-#define open_switch 3
-#define door_state 2
-
-#define door_close_led 10
-#define lock 8
+#define led_pin D4
 
 const char* APssid = "Smarthome-Setup";
 const char* APpassword = "123456789";
@@ -31,27 +11,12 @@ const char* APpassword = "123456789";
 String user_secret;
 String device_secret;
 
-const char* apiURL = "http://192.168.0.244:5000/api/GetDoorLock";
+const char* apiURL = "http://192.168.0.244:5000/api/GetLightController";
 
 ESP8266WebServer server(80);
 IPAddress apIP(192, 168, 1, 1);
 
 bool apMode = true;
-
-String card_id = "";
-
-Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-
-PN532_I2C pn532_i2c(Wire);
-NfcAdapter nfc = NfcAdapter(pn532_i2c);
-
-String allowedCards[100] = {
-
-  "23 49 67 A3",
-  "43 8E 60 A3",
-  "73 FD 84 13"
-
-};
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -220,21 +185,8 @@ void handleConnect() {
 void setup() {
   Serial.begin(115200);
 
-  pinMode(open_switch, INPUT_PULLUP);
-  pinMode(door_close_led, OUTPUT);
-  pinMode(lock, OUTPUT);
-  pinMode(door_state, INPUT_PULLUP);
-
-  SPI.begin();
-  nfc.begin();
-
-  tft.init(240, 320);
-  tft.fillScreen(ST77XX_BLACK);
-  tft.invertDisplay(false);
-
-  zero();
-
-  digitalWrite(door_close_led, HIGH);
+  pinMode(led_pin, OUTPUT);
+  analogWrite(led_pin, LOW);
 
   WiFi.softAP(APssid, APpassword);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
@@ -290,85 +242,15 @@ void loop() {
     }
 
     if (jsonDoc2.containsKey("state")) {
-      String stateValue = jsonDoc2["state"];
+        String state = jsonDoc2["state"];
 
-      if (stateValue == "on") {
-        digitalWrite(door_close_led, LOW);
-      } else if (stateValue == "off") {
-        digitalWrite(door_close_led, HIGH);
-      } else if (stateValue == "auto") {
-        
-      if (digitalRead(door_state) == HIGH) {
-
-        digitalWrite(lock, HIGH);
-        digitalWrite(door_close_led, LOW);
-
-        granted();
-        Serial.println("granted (door open)");
-
-
-        while (digitalRead(door_state) == HIGH) {
-          delay(100);
-        }
-
-        delay(2000);
-
-        digitalWrite(lock, LOW);
-        digitalWrite(door_close_led, HIGH);
-
-        zero();
-
-      } else {
-
-        if (digitalRead(open_switch) == LOW) {
-
-          digitalWrite(lock, HIGH);
-          digitalWrite(door_close_led, LOW);
-
-          switch_granted();
-          Serial.println("granted (open switch)");
-
-          delay(2000);
-
-          digitalWrite(lock, LOW);
-          digitalWrite(door_close_led, HIGH);
-
-          zero();
-
+        if (state == "on") {
+            analogWrite(led_pin, HIGH);
         } else {
-
-          if (nfc.tagPresent()) {
-
-            NfcTag tag = nfc.read();
-            card_id = tag.getUidString();
-
-
-
-            if (checkCard(card_id) == true) {
-              granted();
-              Serial.println(card_id);
-              Serial.println("granted (rfid card)");
-              digitalWrite(lock, HIGH);
-              digitalWrite(door_close_led, LOW);
-
-              delay(2000);
-
-              digitalWrite(lock, LOW);
-              digitalWrite(door_close_led, HIGH);
-
-              zero();
-
-            } else {
-
-              denied();
-              delay(2000);
-              zero();
-            }
-          }
-      }
-
+            analogWrite(led_pin, LOW);
+        }
     } else {
-      Serial.println("Error in state: " + response);
+        Serial.println("Error: Response doesn't contain all keys");
     }
 
     delay(500);
@@ -398,35 +280,39 @@ String getAvailableNetworks() {
   return networkList;
 }
 
-String GetUserSecret(String login, String password){
+String GetUserSecret(const String& login, const String& password) {
 
   DynamicJsonDocument jsonDoc(1024);
   jsonDoc["login"] = login;
   jsonDoc["password"] = password;
+  JsonObject jsonPayload = jsonDoc.as<JsonObject>();
 
-  JsonObject jsonObject = jsonDoc.as<JsonObject>();
+  String response = make_request(apiUrl, jsonPayload);
 
-  String response = make_request("http://192.168.0.244:5000/api/login", jsonObject);
-
-  DynamicJsonDocument jsonDoc2(1024);
-  DeserializationError error = deserializeJson(jsonDoc2, response);
-
-  if (error) {
-    return "GetUserSecret error: " + jsonDoc2["error"].as<String>();
-  }
-
-  if (jsonDoc2.containsKey("user_secret")) {
-    return jsonDoc2["user_secret"].as<String>();
+  if (response != "error") {
+    DynamicJsonDocument responseDoc(1024);
+    DeserializationError error = deserializeJson(responseDoc, response);
+    if (!error) {
+      if (responseDoc.containsKey("user_secret")) {
+        return responseDoc["user_secret"].as<String>();
+      } else if (responseDoc.containsKey("error")) {
+        return responseDoc["error"].as<String>();
+      }
+    } else {
+      return "Failed to parse response: " + String(error.c_str());
+    }
   } else {
-    return "GetUserSecret error: " + jsonDoc2["error"].as<String>();
+    return "Failed to get a valid response from server";
   }
+
+  return "";
 }
 
 String GetDeviceSecret(String userSecret){
   DynamicJsonDocument jsonDoc(1024);
   jsonDoc["user_secret"] = userSecret;
-  jsonDoc["device_name"] = "LightController";
-  jsonDoc["type"] = "LightController";
+  jsonDoc["device_name"] = "RGBController";
+  jsonDoc["type"] = "RGBController";
 
   JsonObject jsonObject = jsonDoc.as<JsonObject>();
 
@@ -445,17 +331,6 @@ String GetDeviceSecret(String userSecret){
   } else {
     return "GetDeviceSecret error: " + jsonDoc2["error"].as<String>();
   }
-}
-
-bool checkCard(String id) {
-
-  for (int i = 0; i < sizeof(allowedCards) / sizeof(allowedCards[0]); i++) {
-    if (card_id == allowedCards[i]) {
-
-      return true;
-    }
-  }
-  return false;
 }
 
 
