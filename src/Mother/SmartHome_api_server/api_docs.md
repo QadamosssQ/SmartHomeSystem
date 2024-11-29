@@ -126,7 +126,7 @@ http://localhost:5000
   {
       "device_secret": "device_secret_key",
       "user_secret": "user_secret_key",
-      "state": "on"
+      "state": "on" // or "off"
   }
   ```
 - **Response:**
@@ -167,7 +167,7 @@ http://localhost:5000
       "r": 255,
       "g": 0,
       "b": 0,
-      "state": "on"
+      "state": "on" // or "off"
   }
   ```
 - **Response:**
@@ -202,7 +202,7 @@ http://localhost:5000
   {
       "device_secret": "device_secret_key",
       "user_secret": "user_secret_key",
-      "state": "auto"
+      "state": "auto" // ['on', 'off', 'auto']
   }
   ```
 - **Response:**
