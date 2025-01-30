@@ -1,6 +1,8 @@
 import secrets
 import socket
 import sqlite3
+from os.path import isfile
+import createdb_temp
 
 import bcrypt
 from flask import Flask, request, jsonify, g
@@ -461,16 +463,6 @@ def is_valid_ip(ip_address):
 
 
 if __name__ == '__main__':
+    if not isfile(DATABASE):
+        createdb_temp.create_db()
     app.run(host='0.0.0.0', port=5000)
-
-
-
-# Example of how to use headers in api !!!! NEVER PUT "_" as a header name
-# @app.route('/api/GetLightController', methods=['GET'])
-# def get_light_controller():
-#     try:
-#
-#         if 'device-secret' in request.headers and 'user-secret' in request.headers:
-#             db = get_db()
-#             cursor = db.cursor()
-#             user_id_tuple_temp = valid
